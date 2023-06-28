@@ -17,6 +17,34 @@ class Novel extends Model
         'description'
     ];
 
+    public function id(): string
+    {
+        return (string) $this->id;
+    }
+
+    public function title(): string
+    {
+        return (string) $this->title;
+    }
+
+    public function author(): string
+    {
+        return (string) $this->author;
+    }
+    public function genre(): string
+    {
+        return (string) $this->genre;
+    }
+
+    public function image(): string
+    {
+        return (string) $this->image;
+    }
+    public function description(): string
+    {
+        return (string) $this->description;
+    }
+
     public function genres()
     {
         return $this->belongsToMany(Genre::class, 'genre_novel');

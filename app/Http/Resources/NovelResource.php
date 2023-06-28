@@ -7,10 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class NovelResource extends JsonResource
 {
-    //define properti
-    public $status;
-    public $message;
-    public $resource;
+    public static $wrap = 'novel';
     /**
      * __construct
      *
@@ -19,12 +16,6 @@ class NovelResource extends JsonResource
      * @param  mixed $resource
      * @return void
      */
-    public function __construct($status, $message, $resource)
-    {
-        parent::__construct($resource);
-        $this->status  = $status;
-        $this->message = $message;
-    }
 
     /**
      * Transform the resource into an array.
@@ -34,9 +25,28 @@ class NovelResource extends JsonResource
     public function toArray(Request $request)
     {
         return [
-            'success'   => $this->status,
-            'message'   => $this->message,
-            'data'      => $this->resource
+            'type' => 'novels',
+            'id' => $this->id(),
+            'attributes' => [
+                'title' => $this->title(),
+                'description' => $this->description(),
+                'author' => $this->author(),
+                'genre' => $this->genre(),
+                'image' => $this->image(),
+                'created_at' => $this->created_at,
+            ],
         ];
+    }
+
+    public function with($request)
+    {
+        return [
+            'status' => 'success',
+        ];
+    }
+
+    public function withResponse($request, $response)
+    {
+        $response->header('Accept', 'application/json');
     }
 }

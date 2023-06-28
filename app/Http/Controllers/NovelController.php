@@ -6,6 +6,9 @@ use App\Models\Novel;
 use App\Http\Requests\StoreNovelRequest;
 use App\Http\Requests\UpdateNovelRequest;
 use Illuminate\Http\Request;
+use App\Http\Resources\NovelCollection;
+use App\Http\Resources\NovelResource;
+use Illuminate\Validation\Rule;
 
 class NovelController extends Controller
 {
@@ -14,9 +17,7 @@ class NovelController extends Controller
      */
     public function index()
     {
-        $novel = Novel::all();
-
-        return response()->json($novel);
+        return new NovelCollection(Novel::all());
     }
 
     /**
@@ -32,38 +33,39 @@ class NovelController extends Controller
      */
     public function store(Request $request)
     {
-        $novel = new Novel;
-        $novel->title = $request->title;
-        $novel->author = $request->author;
-        $novel->genre = $request->genre;
-        $novel->image = $request->image;
-        $novel->description = $request->description;
-        $novel->save();
-        return response()->json(
-            [
-                "message" => "Novel record created"
-            ],
-            201
-        );
+        $this->validate($request, [
+            'title' => ['required', 'unique:novels,title', 'max:255'],
+            'description' => ['required'],
+            'author' => ['required'],
+            'genre' => ['nullable'],
+            'image' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
+        ]);
+
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $imagePath = $image->store('public/images');
+            $imagePath = str_replace('public/', '', $imagePath);
+
+            $novel = Novel::create([
+                'title' => $request->input('title'),
+                'description' => $request->input('description'),
+                'author' => $request->input('author'),
+                'genre' => $request->input('genre'),
+                'image' => $imagePath,
+            ]);
+
+            return (new NovelResource($novel))->response()->setStatusCode(201);
+        }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show($id)
+    public function show(Novel $novel)
     {
-        $novel = Novel::find($id);
-        if (!empty($novel)) {
-            return response()->json($novel);
-        } else {
-            return response()->json(
-                [
-                    "message" => "Novel not found"
-                ],
-                404
-            );
-        }
+        return (new NovelResource($novel))->response()->setStatusCode(200);
     }
+
 
     /**
      * Show the form for editing the specified resource.
@@ -76,55 +78,39 @@ class NovelController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Novel $novel)
     {
-        if (Novel::where('id', $id)->exists()) {
-            $novel = Novel::find($id);
-            $novel->title = is_null($request->title) ? $novel->title : $request->title;
-            $novel->author = is_null($request->author) ? $novel->author : $request->author;
-            $novel->genre = is_null($request->genre) ? $novel->genre : $request->genre;
-            $novel->image = is_null($request->image) ? $novel->image : $request->image;
-            $novel->description = is_null($request->description) ? $novel->description : $request->description;
-            $novel->save();
+        $this->validate($request, [
+            'title' => ['sometimes', 'max:255', Rule::unique('novels')->ignore($novel->title, 'title')],
+            'description' => ['sometimes'],
+            'author' => ['sometimes'],
+            'genre' => ['sometimes'],
+            'image' => ['sometimes', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
+        ]);
 
-            return response()->json(
-                [
-                    "message" => "Novel record updated successfully"
-                ],
-                200
-            );
-        } else {
-            return response()->json(
-                [
-                    "message" => "Novel not found"
-                ],
-                404
-            );
+        $imagePath = $novel->image;
+
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $imagePath = $image->store('public/images');
+            $imagePath = str_replace('public/', '', $imagePath);
         }
+
+        $novel->fill($request->all()); // Fill the model with all request data
+        $novel->image = $imagePath; // Set the updated image path
+
+        $novel->save();
+
+        return (new NovelResource($novel))->response()->setStatusCode(200);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id)
+    public function destroy(Novel $novel)
     {
-        if (Novel::where('id', $id)->exists()) {
-            $novel = Novel::find($id);
-            $novel->delete();
+        $novel->delete();
 
-            return response()->json(
-                [
-                    "message" => "Novel record deleted"
-                ],
-                202
-            );
-        } else {
-            return response()->json(
-                [
-                    "message" => "Novel not found"
-                ],
-                404
-            );
-        }
+        return response()->json(null, 204);
     }
 }
